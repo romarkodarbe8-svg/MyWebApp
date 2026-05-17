@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body { background-color: #0b0e11; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+
+/* LOGIN SCREEN */
+#login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0e11; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+.login-card { background: #151921; border: 1px solid #f1c27d; border-radius: 15px; padding: 40px; width: 350px; text-align: center; box-shadow: 0 0 30px rgba(241, 194, 125, 0.2); }
+::placeholder { color: #8a94a6 !important; opacity: 1; font-style: italic; }
+
+#main-app { display: none; }
+.navbar { background-color: #151921 !important; border-bottom: 2px solid #f1c27d; padding: 0.8rem; }
+.nav-link { color: #f1c27d !important; cursor: pointer; font-weight: bold; margin-right: 15px; }
+.nav-link:hover { color: #ffffff !important; }
+
+/* --- DASHBOARD UI RESTORED (BATCH 1) --- */
+#dashboard { padding: 30px; }
+.dash-card { 
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); 
+  border-radius: 15px; padding: 20px; transition: 0.3s; backdrop-filter: blur(10px); 
+}
+.dash-card:hover { 
+  border-color: #f1c27d !important; 
+  transform: translateY(-5px) !important; 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important; 
+}
+.stat-val { font-size: 1.8rem; font-weight: 900; letter-spacing: -1px; }
+
+/* NEON COLORS (BATCH 1) */
+#rev { color: #00ff88 !important; text-shadow: 0 0 10px rgba(0, 255, 136, 0.4); }
+#cost { color: #ff4d4d !important; text-shadow: 0 0 10px rgba(255, 77, 77, 0.4); }
+#prof { color: #00e5ff !important; text-shadow: 0 0 10px rgba(0, 229, 255, 0.4); }
+#orders { color: #ffaa00 !important; text-shadow: 0 0 10px rgba(255, 170, 0, 0.4); }
+#sold { color: #2ecc71 !important; text-shadow: 0 0 10px rgba(46, 204, 113, 0.4); }
+
+/* STICKY HEADER TABLES (BATCH 1) */
+.section-bg { background-color: #f8f9fa; color: #1e293b !important; min-height: 85vh; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.header-bar { background-color: #cbd5e1; border-bottom: 2px solid #94a3b8; padding: 15px 25px; color: #1e293b; }
+.table-container { flex-grow: 1; overflow-y: auto; max-height: 60vh; position: relative; }
+.table-custom { width: 100%; border-collapse: separate; border-spacing: 0; background-color: white; table-layout: fixed; }
+.table-custom thead th { 
+  position: sticky; top: 0; background-color: #2c3e50 !important; color: #f1c27d !important; 
+  z-index: 100; padding: 12px; border-bottom: 3px solid #f1c27d; text-transform: uppercase; 
+}
+.table-custom tbody td { padding: 12px; border-bottom: 1px solid #dee2e6; font-size: 0.85rem; vertical-align: middle; }
+
+.status-badge { font-size: 0.75rem; font-weight: 800; border-radius: 4px; padding: 6px; color: white !important; display: block; width: 110px; text-align: center; }
+.bg-posted { background-color: #198754 !important; } .bg-pending { background-color: #dc3545 !important; } .bg-waiting { background-color: #6c757d !important; }
+
+.working-area { display: none; }
+.active-area { display: block; animation: fadeIn 0.4s; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11,14,17,0.95); z-index: 10001; display: flex; flex-direction: column; align-items: center; justify-content: center; visibility: hidden; }
+.modal-content { background-color: #1a1f26; border: 1px solid #f1c27d; color: white; }
+
+/* --- CORRECTED PRINT CSS (BATCH 2 STYLE - LETTER SIZE PORTRAIT) --- */
+@media print {
+    @page { size: letter portrait; margin: 0.5in; }
+    body * { visibility: hidden !important; }
+    #printArea, #printArea * { visibility: visible !important; }
+    #printArea {
+        position: fixed !important; left: 0 !important; top: 0 !important;
+        width: 100% !important; background: white !important;
+        color: black !important; padding: 0 !important; margin: 0 !important;
+        display: block !important;
+    }
+    #detailTable {
+        width: 100% !important; border-collapse: collapse !important;
+        border: 1px solid black !important; table-layout: auto !important;
+        font-size: 9.5pt !important;
+    }
+    #detailTable th, #detailTable td {
+        border: 1px solid black !important; padding: 6px !important;
+        color: black !important; word-wrap: break-word !important;
+    }
+    h4.fw-bold { font-size: 16pt !important; color: black !important; margin-bottom: 5px !important; }
+    #viewRef { font-size: 13pt !important; color: black !important; font-weight: bold !important; }
+    .modal-header, .modal-footer, .navbar, .btn, .btn-close, .no-print { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading-overlay"><div class="spinner-grow text-warning"></div><span class="mt-3 text-warning fw-bold">PROCESSING...</span></div>
+
+<div id="login-screen">
+  <div class="login-card">
+    <h3 class="text-warning fw-bold mb-4">SYSTEM LOGIN</h3>
+    <div class="text-start small text-secondary mb-1">Username</div>
+    <input type="text" id="user_input" class="form-control mb-3 bg-dark text-white border-secondary" placeholder="Enter Username">
+    <div class="text-start small text-secondary mb-1">Password</div>
+    <input type="password" id="pass_input" class="form-control mb-4 bg-dark text-white border-secondary" placeholder="Enter Password">
+    <button class="btn btn-warning w-100 fw-bold" onclick="handleLogin()">LOGIN</button>
+    <div id="login-error" class="text-danger small mt-3"></div>
+  </div>
+</div>
+
+<div id="main-app">
+  <nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container-fluid">
+      <span class="navbar-brand text-warning fw-bold h4 m-0">BUSINESS DASHBOARD</span>
+      <div class="ms-auto d-flex align-items-center">
+        <span class="nav-link" onclick="showSection('dashboard')">Dashboard</span>
+        <span class="nav-link" onclick="showSection('data-sales')">Data Sales</span>
+        <span class="nav-link" onclick="showSection('inventory')">Inventory</span>
+        <span class="nav-link" onclick="showSection('stock-in')">Stock In</span>
+        <span class="nav-link" onclick="showSection('stock-out')">Stock Out</span>
+        <span class="nav-link" onclick="showSection('transactions')">Transaction</span>
+        <div class="dropdown ms-3">
+          <button class="btn btn-outline-warning btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" id="userDisplay">User</button>
+          <ul class="dropdown-menu dropdown-menu-end bg-dark border-secondary">
+            <li><button class="dropdown-item text-white small" onclick="openPassModal()">Change Password</button></li>
+            <li><hr class="dropdown-divider border-secondary"></li>
+            <li><button class="dropdown-item text-danger small" onclick="handleLogout()">Logout</button></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid mt-3">
+    <!-- DASHBOARD (BATCH 1) -->
+    <div id="dashboard" class="working-area active-area">
+      <div class="dash-card mb-4" style="background: #151921;">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="small fw-bold text-warning mb-1">DATE FROM</label><input type="date" id="dash_start" class="form-control form-control-sm bg-dark text-white border-secondary"></div>
+          <div class="col-md-3"><label class="small fw-bold text-warning mb-1">DATE UNTIL</label><input type="date" id="dash_end" class="form-control form-control-sm bg-dark text-white border-secondary"></div>
+          <div class="col-md-3"><label class="small fw-bold text-warning mb-1">CATEGORY</label><select id="dash_cat" class="form-select form-select-sm bg-dark text-white border-secondary"></select></div>
+          <div class="col-md-3"><button class="btn btn-warning btn-sm w-100 fw-bold" onclick="filterDashboard()">GENERATE REPORT</button></div>
+        </div>
+      </div>
+      <div class="row g-3 mb-4 text-center">
+        <div class="col"><div class="dash-card"><div class="stat-label small">Revenue</div><div id="rev" class="stat-val">$ 0</div></div></div>
+        <div class="col"><div class="dash-card"><div class="stat-label small">Cost</div><div id="cost" class="stat-val">$ 0</div></div></div>
+        <div class="col"><div class="dash-card"><div class="stat-label small">Profit</div><div id="prof" class="stat-val">$ 0</div></div></div>
+        <div class="col"><div class="dash-card"><div class="stat-label small">Orders</div><div id="orders" class="stat-val">0</div></div></div>
+        <div class="col"><div class="dash-card"><div class="stat-label small">Sold</div><div id="sold" class="stat-val">0</div></div></div>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-3"><div class="dash-card"><canvas id="dailyChart" style="height:250px"></canvas></div></div>
+        <div class="col-md-3"><div class="dash-card"><canvas id="weeklyChart" style="height:250px"></canvas></div></div>
+        <div class="col-md-3"><div class="dash-card"><canvas id="monthlyChart" style="height:250px"></canvas></div></div>
+        <div class="col-md-3"><div class="dash-card"><canvas id="yearlyChart" style="height:250px"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- STOCK IN -->
+    <div id="stock-in" class="working-area p-3">
+      <div class="section-bg shadow-lg">
+        <div class="header-bar d-flex justify-content-between">
+          <div><span class="badge bg-secondary">User: <span id="si_display_user"></span></span><input type="text" id="si_po" class="form-control form-control-sm mt-2" placeholder="Enter PO #" oninput="liveCheck(this.value, 'PO', 'si_badge')"><div id="si_badge" class="status-badge bg-waiting mt-1">WAITING</div><button class="btn btn-success btn-sm w-100 mt-2 fw-bold" onclick="postAction('IN')">PROCESS STOCK IN</button></div>
+          <h2 class="fw-bold text-dark m-0">STOCK IN</h2>
+        </div>
+        <div class="p-3 bg-dark text-white d-flex align-items-center gap-3"><label>SCAN:</label><input type="text" id="si_barcode" class="form-control form-control-sm w-25" onkeypress="handleScan(event, 'IN')"></div>
+        <div class="table-container"><table class="table-custom"><thead><tr><th>SKU</th><th>Product</th><th>Qty</th><th>Action</th></tr></thead><tbody id="si_summary"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- STOCK OUT -->
+    <div id="stock-out" class="working-area p-3">
+      <div class="section-bg shadow-lg">
+        <div class="header-bar d-flex justify-content-between">
+          <div><span class="badge bg-secondary">User: <span id="so_display_user"></span></span><input type="text" id="so_order" class="form-control form-control-sm mt-2" placeholder="Enter OR #" oninput="liveCheck(this.value, 'SO', 'so_badge')"><div class="d-flex gap-1 mt-1"><select id="so_cust" class="form-select form-select-sm"></select><select id="so_chan" class="form-select form-select-sm"></select></div><div id="so_badge" class="status-badge bg-waiting mt-1">WAITING</div><button class="btn btn-primary btn-sm w-100 mt-2 fw-bold" onclick="postAction('OUT')">PROCESS STOCK OUT</button></div>
+          <h2 class="fw-bold text-dark m-0">STOCK OUT</h2>
+        </div>
+        <div class="p-3 bg-dark text-white d-flex align-items-center gap-3"><label>SCAN:</label><input type="text" id="so_barcode" class="form-control form-control-sm w-25" onkeypress="handleScan(event, 'OUT')"></div>
+        <div class="table-container"><table class="table-custom"><thead><tr><th>SKU</th><th>Product</th><th>Qty</th><th>Action</th></tr></thead><tbody id="so_summary"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div id="transactions" class="working-area p-3">
+      <div class="section-bg shadow-lg">
+        <div class="header-bar d-flex justify-content-between align-items-center">
+          <div class="d-flex gap-2 align-items-center"><h4 class="m-0 fw-bold">TRANSACTION LOGS</h4><select id="trans_type" class="form-select w-auto" onchange="loadTransList()"><option value="PO">PO</option><option value="OR">OR</option></select></div>
+          <input type="text" id="transSearch" class="form-control w-25" placeholder="Search..." onkeyup="filterTable('transTable', 'transSearch')">
+        </div>
+        <div class="table-container"><table class="table-custom" id="transTable"><thead><tr><th>Ref #</th><th>Transaction ID</th><th>Processed By</th><th>Action</th></tr></thead><tbody id="trans_list_body"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- DATA SALES -->
+    <div id="data-sales" class="working-area p-3">
+      <div class="section-bg shadow-lg"><div class="header-bar d-flex justify-content-between align-items-center"><h4>RAW DATA SALES</h4><input type="text" id="salesSearch" class="form-control w-25" onkeyup="filterTable('salesTable', 'salesSearch')"></div><div id="sales-container" class="table-container"></div></div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="inventory" class="working-area p-3">
+      <div class="section-bg shadow-lg"><div class="header-bar d-flex justify-content-between align-items-center"><h4>INVENTORY DETAILS</h4><input type="text" id="invSearch" class="form-control w-25" onkeyup="filterTable('invTable', 'invSearch')"></div><div id="inv-container" class="table-container"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal fade" id="passModal" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Change Password</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="password" id="new_pass" class="form-control bg-dark text-white" placeholder="New Password"></div><div class="modal-footer"><button class="btn btn-warning w-100 fw-bold" onclick="saveNewPass()">SAVE CHANGE</button></div></div></div></div>
+
+<!-- VIEW DETAILS MODAL (BATCH 2 PRINT READY) -->
+<div class="modal fade" id="viewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="viewTitle" class="modal-title">Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="printArea">
+        <div class="p-4 bg-white text-dark rounded shadow-sm">
+          <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
+            <div><h4 class="fw-bold m-0" style="color:#000;">BUSINESS AUDIT LOG</h4><p id="viewMeta" class="small m-0 text-dark"></p></div>
+            <div class="text-end"><h5>OFFICIAL DOCUMENT</h5><p id="viewRef" class="fw-bold text-danger m-0"></p></div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm" id="detailTable">
+              <thead class="table-secondary"><tr id="detailHeader"></tr></thead>
+              <tbody id="detailBody"></tbody>
+            </table>
+          </div>
+          <div class="mt-3 small text-dark border-top pt-2">
+            <i>Note: System generated document for audit.</i>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer no-print">
+        <button class="btn btn-info btn-sm" onclick="exportExcel()">Excel Export</button>
+        <button class="btn btn-warning btn-sm fw-bold px-4" onclick="window.print()">Print PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let currentUser = "";
+let scanInList = []; let scanOutList = []; 
+let fullSalesData = []; let fullInvData = [];
+let charts = {};
+
+function showLoading(v) { document.getElementById('loading').style.visibility = v ? 'visible' : 'hidden'; }
+
+function handleLogin() {
+  const u = document.getElementById('user_input').value, p = document.getElementById('pass_input').value;
+  if(!u || !p) return;
+  showLoading(true);
+  google.script.run.withSuccessHandler(res => {
+    showLoading(false);
+    if(res.success) {
+      currentUser = res.user;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('main-app').style.display = 'block';
+      document.getElementById('userDisplay').innerText = "Hi, " + currentUser;
+      document.getElementById('si_display_user').innerText = currentUser;
+      document.getElementById('so_display_user').innerText = currentUser;
+      refreshData();
+    } else { document.getElementById('login-error').innerText = "Invalid credentials!"; }
+  }).checkLogin(u, p);
+}
+
+function handleLogout() {
+  currentUser = "";
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('user_input').value = '';
+  document.getElementById('pass_input').value = '';
+}
+
+function openPassModal() { document.getElementById('new_pass').value = ''; new bootstrap.Modal(document.getElementById('passModal')).show(); }
+function saveNewPass() {
+  const np = document.getElementById('new_pass').value; if(!np) return alert("Enter password.");
+  google.script.run.withSuccessHandler(res => { alert(res); bootstrap.Modal.getInstance(document.getElementById('passModal')).hide(); }).updatePassword(currentUser, np);
+}
+
+function showSection(id) {
+  document.querySelectorAll('.working-area').forEach(a => a.classList.remove('active-area'));
+  document.getElementById(id).classList.add('active-area');
+  if(id === 'transactions') loadTransList();
+}
+
+function refreshData() {
+  showLoading(true);
+  google.script.run.withSuccessHandler(data => {
+    fullSalesData = data.salesData; fullInvData = data.invData;
+    renderTable(data.invData, 'inv-container', 'invTable');
+    renderTable(data.salesData, 'sales-container', 'salesTable');
+    fillSelect('so_cust', data.customerTypes); fillSelect('so_chan', data.channels);
+    fillSelect('dash_cat', data.categories, true);
+    filterDashboard(); showLoading(false);
+  }).getSystemData();
+}
+
+function filterDashboard() {
+  if (!fullSalesData || fullSalesData.length < 2) return;
+  const start = document.getElementById('dash_start').value, end = document.getElementById('dash_end').value, cat = document.getElementById('dash_cat').value;
+  const rows = fullSalesData.slice(1);
+  const sT = start ? new Date(start).getTime() : null, eT = end ? new Date(end).getTime() : null;
+  let rev = 0, prof = 0, sold = 0, count = 0;
+  let dMap = {}, wMap = {}, mMap = {}, yMap = {};
+  rows.forEach(r => {
+    const rDate = new Date(r[0]); if(isNaN(rDate.getTime())) return;
+    const rT = rDate.getTime();
+    if((!sT || rT >= sT) && (!eT || rT <= eT) && (cat === 'ALL' || r[4] === cat)) {
+      count++;
+      let rRev = parseFloat(String(r[8] || "0").replace(/[^\d.-]/g, '')) || 0;
+      let rProf = parseFloat(String(r[9] || "0").replace(/[^\d.-]/g, '')) || 0;
+      rev += rRev; prof += rProf; sold += (parseInt(r[5]) || 0);
+      const dK = r[0], wK = "Wk" + getWeek(rDate), mK = rDate.toLocaleString('default', { month: 'short' }), yK = rDate.getFullYear().toString();
+      dMap[dK] = (dMap[dK] || 0) + rRev; wMap[wK] = (wMap[wK] || 0) + rRev; mMap[mK] = (mMap[mK] || 0) + rRev; yMap[yK] = (yMap[yK] || 0) + rRev;
+    }
+  });
+  document.getElementById('rev').innerText = "$" + Math.round(rev).toLocaleString();
+  document.getElementById('cost').innerText = "$" + Math.round(rev - prof).toLocaleString();
+  document.getElementById('prof').innerText = "$" + Math.round(prof).toLocaleString();
+  document.getElementById('orders').innerText = count;
+  document.getElementById('sold').innerText = sold;
+  initChart('dailyChart', 'bar', dMap, 'Daily Revenue', '#00ff88');
+  initChart('weeklyChart', 'line', wMap, 'Weekly Trend', '#00e5ff');
+  initChart('monthlyChart', 'line', mMap, 'Monthly Growth', '#ffaa00', true);
+  initChart('yearlyChart', 'doughnut', yMap, 'Yearly Share', ['#00ff88','#00e5ff','#ffaa00','#ff4d4d']);
+}
+
+function initChart(id, type, map, label, color, fill = false) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if(charts[id]) charts[id].destroy();
+  const keys = Object.keys(map).sort();
+  charts[id] = new Chart(ctx, {
+    type: type,
+    data: { labels: keys, datasets: [{ label: label, data: keys.map(k => map[k]), backgroundColor: color, borderColor: color, borderWidth: 2, fill: fill, tension: 0.4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderTable(data, containerId, tableId) {
+  if (!data || data.length === 0) return;
+  let html = `<table class="table-custom" id="${tableId}"><thead><tr>${data[0].map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  data.slice(1).forEach(r => {
+    if (!r[0] || r[0].toString().trim() === "") return;
+    html += `<tr>${r.map((c, i) => {
+      let content = c; if(tableId === 'invTable' && i === 7) { let v = parseInt(c) || 0; content = (v === 0) ? `<span class="badge bg-danger">0 OUT</span>` : (v <= 5) ? `<span class="badge bg-warning text-dark">${v} LOW</span>` : v; }
+      return `<td>${content}</td>`;
+    }).join('')}</tr>`;
+  });
+  document.getElementById(containerId).innerHTML = html + `</tbody></table>`;
+}
+
+function postAction(mode) {
+  const items = (mode === 'IN' ? scanInList : scanOutList); if (items.length === 0) return alert("Scan first!");
+  if(mode === 'OUT') { for(let item of items) { let invRow = fullInvData.find(r => r[0].toString() === item.sku.toString()); if(invRow && parseInt(invRow[7]) < item.qty) { alert("Insufficient stock: " + item.name); return; } } }
+  showLoading(true);
+  const h = mode === 'IN' ? { po: document.getElementById('si_po').value, user: currentUser } : { orderId: document.getElementById('so_order').value, user: currentUser, custType: document.getElementById('so_cust').value, channel: document.getElementById('so_chan').value };
+  google.script.run.withSuccessHandler(res => { 
+    if (mode === 'IN') { scanInList = []; document.getElementById('si_po').value = ''; document.getElementById('si_badge').innerText = 'WAITING'; document.getElementById('si_badge').className = 'status-badge bg-waiting mt-1'; } 
+    else { scanOutList = []; document.getElementById('so_order').value = ''; document.getElementById('so_badge').innerText = 'WAITING'; document.getElementById('so_badge').className = 'status-badge bg-waiting mt-1'; }
+    updateSummary(mode); refreshData(); alert(res.msg); viewDetails(res.ref, res.type);
+  }).withFailureHandler(err => { alert(err); showLoading(false); })[mode === 'IN' ? 'saveStockIn' : 'saveStockOut'](items, h);
+}
+
+function liveCheck(val, type, badgeId) { if (val.length < 2) return; google.script.run.withSuccessHandler(res => { let b = document.getElementById(badgeId); b.innerText = res; b.className = 'status-badge ' + (res === 'POSTED' ? 'bg-posted' : 'bg-pending'); }).checkStatus(val, type); }
+function loadTransList() { const type = document.getElementById('trans_type').value; google.script.run.withSuccessHandler(data => { document.getElementById('trans_list_body').innerHTML = data.map(i => `<tr><td>${i.ref}</td><td>${i.txnId}</td><td>${i.user}</td><td><button class="btn btn-warning btn-sm fw-bold" onclick="viewDetails('${i.ref}', '${type}')">VIEW</button></td></tr>`).join(''); }).getTransactionList(type); }
+
+function viewDetails(ref, type) {
+  showLoading(true);
+  google.script.run.withSuccessHandler(data => {
+    document.getElementById('viewTitle').innerText = (type === 'PO' ? 'PURCHASE ORDER' : 'ORDER RECEIPT');
+    document.getElementById('viewRef').innerText = type + ": " + ref;
+    document.getElementById('viewMeta').innerText = "By: " + (data.rows[0][6] || 'N/A') + " | Date: " + (data.rows[0][4] || '');
+    document.getElementById('detailHeader').innerHTML = data.header.map(h => `<th>${h}</th>`).join('');
+    document.getElementById('detailBody').innerHTML = data.rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+    showLoading(false); new bootstrap.Modal(document.getElementById('viewModal')).show();
+  }).getTransactionDetails(ref, type);
+}
+
+function handleScan(e, mode) { if (e.key === 'Enter') { let sku = e.target.value; google.script.run.withSuccessHandler(prod => { if (prod) { let list = (mode === 'IN' ? scanInList : scanOutList); let exist = list.find(i => i.sku === prod.sku); if (exist) { exist.qty++; } else { list.push({ sku: prod.sku, name: prod.name, qty: 1 }); } updateSummary(mode); e.target.value = ''; } else alert("SKU Not Found!"); }).getProductBySKU(sku); } }
+function updateSummary(mode) { let list = (mode === 'IN' ? scanInList : scanOutList); document.getElementById(mode === 'IN' ? 'si_summary' : 'so_summary').innerHTML = list.map((item, idx) => `<tr><td>${item.sku}</td><td>${item.name}</td><td>${item.qty}</td><td><button class="btn btn-outline-danger btn-sm" onclick="removeItem(${idx},'${mode}')">REMOVE</button></td></tr>`).join(''); }
+function removeItem(idx, mode) { if (mode === 'IN') scanInList.splice(idx, 1); else scanOutList.splice(idx, 1); updateSummary(mode); }
+function fillSelect(id, list, addAll = false) { let el = document.getElementById(id); el.innerHTML = (addAll ? `<option value="ALL">All Categories</option>` : '') + list.map(i => `<option value="${i}">${i}</option>`).join(''); }
+function exportExcel() { let table = document.getElementById("detailTable"); let wb = XLSX.utils.table_to_book(table, {sheet: "Transaction"}); XLSX.writeFile(wb, "Transaction_Log.xlsx"); }
+function filterTable(tId, iId) { let f = document.getElementById(iId).value.toUpperCase(); document.getElementById(tId).querySelectorAll("tbody tr").forEach(r => r.style.display = r.innerText.toUpperCase().includes(f) ? "" : "none"); }
+function getWeek(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7)); return Math.ceil((((d - new Date(Date.UTC(d.getUTCFullYear(),0,1))) / 86400000) + 1)/7); }
+</script>
+</body>
+</html>
