@@ -1,5 +1,18 @@
 // LINK NG IYONG GOOGLE APPS SCRIPT WEB APP BACKEND
-const WEB_APP_URL = "https://google.com";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxXhI5iF2Iw-NLmL0ZBaz5Hh7ExXHcwRtfRf52uVvSHirG9R8W4U3pdvKX2n8x0divo/exec";
+
+let currentUser = "";
+let scanInList = []; let scanOutList = []; 
+let fullSalesData = []; let fullInvData = [];
+let charts = {};
+
+function showLoading(v) { document.getElementById('loading').style.visibility = v ? 'visible' : 'hidden'; }
+
+function showSection(sectionId) {
+  document.querySelectorAll('.working-area').forEach(el => el.classList.remove('active-area'));
+  const target = document.getElementById(sectionId);
+  if (target) target.classList.add('active-area');
+}
 
 // 1. BRIDGE CONTROLLER PARA SA LOGIN
 function handleLogin() {
@@ -83,7 +96,6 @@ function handleSystemDataSetup(data) {
   fullInvData = data.invData;
   fullSalesData = data.salesData;
   
-  // Populate dropdown lists
   renderTable(data.invData, 'inv-container', 'invTable');
   renderTable(data.salesData, 'sales-container', 'salesTable');
   fillSelect('so_cust', data.customerTypes); 
