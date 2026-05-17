@@ -2,6 +2,7 @@
 <html>
 <head>
 <base target="_top">
+<!-- BOOTSTRAP CSS PARA SA MAGANDANG DISENYO -->
 <link href="https://jsdelivr.net" rel="stylesheet">
 <script src="https://jsdelivr.net"></script>
 <script src="https://cloudflare.com"></script>
@@ -60,7 +61,7 @@ body { background-color: #0b0e11; color: #e0e0e0; font-family: 'Segoe UI', sans-
 .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11,14,17,0.95); z-index: 10001; display: flex; flex-direction: column; align-items: center; justify-content: center; visibility: hidden; }
 .modal-content { background-color: #1a1f26; border: 1px solid #f1c27d; color: white; }
 
-/* --- CORRECTED PRINT CSS (BATCH 2 STYLE - LETTER SIZE PORTRAIT) --- */
+/* --- CORRECTED PRINT CSS --- */
 @media print {
     @page { size: letter portrait; margin: 0.5in; }
     body * { visibility: hidden !important; }
@@ -201,7 +202,7 @@ body { background-color: #0b0e11; color: #e0e0e0; font-family: 'Segoe UI', sans-
 <!-- CHANGE PASSWORD MODAL -->
 <div class="modal fade" id="passModal" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Change Password</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="password" id="new_pass" class="form-control bg-dark text-white" placeholder="New Password"></div><div class="modal-footer"><button class="btn btn-warning w-100 fw-bold" onclick="saveNewPass()">SAVE CHANGE</button></div></div></div></div>
 
-<!-- VIEW DETAILS MODAL (BATCH 2 PRINT READY) -->
+<!-- VIEW DETAILS MODAL -->
 <div class="modal fade" id="viewModal" tabindex="-1">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
@@ -234,6 +235,7 @@ body { background-color: #0b0e11; color: #e0e0e0; font-family: 'Segoe UI', sans-
   </div>
 </div>
 
+<!-- GUMAGAMIT NG SCRIPT.JS AT BOOTSTRAP BUNDLE PARA SA PIPELINES -->
 <script src="https://jsdelivr.net"></script>
 <script src="script.js"></script>
 </body>
